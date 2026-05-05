@@ -1,0 +1,632 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Huseljic · Arbre Généalogique</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400&family=Jost:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --cream:#F5F0E8;--ink:#1a1612;--ink-light:#4a4540;--ink-muted:#8a847c;
+  --gold:#B8936A;--gold-light:#D4B896;
+  --huseljic:#2C4A3E;--huseljic-light:#4a7a6a;
+  --lopo:#3A2C4A;--lopo-light:#6a4a7a;
+  --me:#B8936A;--line:#C8BFB0;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Jost',sans-serif;background:var(--cream);color:var(--ink);overflow:hidden;width:100vw;height:100vh;user-select:none;}
+
+#password-screen{position:fixed;inset:0;z-index:1000;background:var(--ink);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2rem;}
+#password-screen h1{font-family:'Cormorant Garamond',serif;font-size:2.8rem;font-weight:300;color:var(--cream);letter-spacing:0.08em;}
+#pw-input{background:transparent;border:none;border-bottom:1px solid var(--gold);color:var(--cream);font-family:'Jost',sans-serif;font-size:1.2rem;padding:0.5rem 1rem;text-align:center;outline:none;letter-spacing:0.3em;width:220px;}
+#pw-input::placeholder{color:#555;letter-spacing:0.1em;}
+#pw-error{color:#c97;font-size:0.8rem;opacity:0;transition:opacity 0.3s;}
+#pw-error.show{opacity:1;}
+#pw-btn{background:var(--gold);border:none;color:var(--ink);font-family:'Jost',sans-serif;font-size:0.8rem;font-weight:500;letter-spacing:0.15em;text-transform:uppercase;padding:0.7rem 2.5rem;cursor:pointer;}
+#pw-btn:hover{background:var(--gold-light);}
+
+#lang-screen{position:fixed;inset:0;z-index:999;background:var(--ink);display:none;flex-direction:column;align-items:center;justify-content:center;gap:3rem;}
+#lang-screen h1{font-family:'Cormorant Garamond',serif;font-size:3.2rem;font-weight:300;color:var(--cream);letter-spacing:0.06em;text-align:center;line-height:1.2;}
+.lang-grid{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:#333;border:1px solid #333;}
+.lang-btn{background:#111;color:var(--cream);font-family:'Cormorant Garamond',serif;font-size:1.4rem;font-weight:300;padding:1.8rem 3.5rem;cursor:pointer;transition:background 0.2s,color 0.2s;text-align:center;border:none;letter-spacing:0.05em;}
+.lang-btn:hover{background:var(--gold);color:var(--ink);}
+.lang-btn small{display:block;font-family:'Jost',sans-serif;font-size:0.7rem;letter-spacing:0.15em;text-transform:uppercase;opacity:0.6;margin-top:4px;}
+
+#app{display:none;width:100%;height:100%;position:relative;}
+#toolbar{position:fixed;top:1.5rem;left:50%;transform:translateX(-50%);z-index:100;display:flex;align-items:center;gap:1rem;background:rgba(26,22,18,0.92);backdrop-filter:blur(10px);padding:0.6rem 1.2rem;border-radius:2rem;border:0.5px solid rgba(184,147,106,0.3);}
+#toolbar h1{font-family:'Cormorant Garamond',serif;font-size:1rem;font-weight:400;color:var(--cream);letter-spacing:0.1em;white-space:nowrap;}
+.tb-sep{width:1px;height:18px;background:rgba(255,255,255,0.15);}
+.tb-btn{background:none;border:none;color:var(--gold-light);font-family:'Jost',sans-serif;font-size:0.72rem;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;padding:0.2rem 0.4rem;transition:color 0.2s;white-space:nowrap;}
+.tb-btn:hover{color:var(--cream);}
+#lang-indicator{font-size:0.7rem;color:var(--gold);letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;}
+
+#legend{position:fixed;bottom:1.5rem;left:1.5rem;z-index:100;display:flex;flex-direction:column;gap:0.5rem;}
+.legend-item{display:flex;align-items:center;gap:8px;}
+.legend-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;}
+.legend-label{font-size:0.68rem;letter-spacing:0.1em;text-transform:uppercase;color:var(--ink-muted);}
+
+#viewport{width:100%;height:100%;overflow:hidden;position:relative;cursor:grab;}
+#viewport:active{cursor:grabbing;}
+#world{position:absolute;transform-origin:0 0;}
+#lines-svg{position:absolute;top:0;left:0;overflow:visible;pointer-events:none;}
+
+.person{position:absolute;width:120px;display:flex;flex-direction:column;align-items:center;cursor:pointer;}
+.person-photo{width:66px;height:66px;border-radius:50%;border:2.5px solid var(--line);overflow:hidden;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:transform 0.2s;}
+.person:hover .person-photo{transform:scale(1.07);}
+.person-photo img{width:100%;height:100%;object-fit:cover;}
+.person-initials{font-family:'Cormorant Garamond',serif;font-size:1.1rem;font-weight:400;color:white;}
+.person-info{text-align:center;margin-top:5px;}
+.person-first{font-family:'Cormorant Garamond',serif;font-size:0.82rem;font-weight:500;line-height:1.2;color:var(--ink);}
+.person-maiden{font-family:'Cormorant Garamond',serif;font-size:0.68rem;font-weight:300;font-style:italic;color:var(--ink-muted);line-height:1.2;}
+.person-dates{font-size:0.6rem;color:var(--ink-muted);letter-spacing:0.03em;margin-top:2px;}
+
+#zoom-controls{position:fixed;bottom:1.5rem;right:1.5rem;z-index:100;display:flex;flex-direction:column;gap:4px;}
+.zoom-btn{width:36px;height:36px;background:rgba(26,22,18,0.85);border:0.5px solid rgba(184,147,106,0.3);color:var(--gold-light);font-size:1.2rem;cursor:pointer;display:flex;align-items:center;justify-content:center;}
+.zoom-btn:hover{background:rgba(26,22,18,1);}
+#zoom-label{text-align:center;font-size:0.62rem;color:var(--ink-muted);letter-spacing:0.05em;}
+
+#modal-overlay{position:fixed;inset:0;z-index:500;background:rgba(26,22,18,0.7);backdrop-filter:blur(4px);display:none;align-items:center;justify-content:center;}
+#modal-overlay.open{display:flex;}
+.modal{background:var(--cream);width:380px;max-width:95vw;max-height:90vh;overflow-y:auto;border:0.5px solid var(--gold-light);position:relative;}
+.modal-header{padding:2rem 2rem 1.2rem;border-bottom:0.5px solid var(--line);display:flex;gap:1.2rem;align-items:flex-start;}
+.modal-photo{width:72px;height:72px;border-radius:50%;overflow:hidden;flex-shrink:0;border:2px solid var(--gold-light);display:flex;align-items:center;justify-content:center;font-family:'Cormorant Garamond',serif;font-size:1.5rem;color:white;}
+.modal-photo img{width:100%;height:100%;object-fit:cover;}
+.modal-name{font-family:'Cormorant Garamond',serif;font-size:1.4rem;font-weight:400;line-height:1.2;}
+.modal-relation{font-size:0.72rem;color:var(--ink-muted);letter-spacing:0.1em;text-transform:uppercase;margin-top:4px;}
+.modal-body{padding:1.2rem 2rem;}
+.modal-row{display:flex;justify-content:space-between;align-items:baseline;padding:0.55rem 0;border-bottom:0.5px solid rgba(200,191,176,0.4);font-size:0.82rem;}
+.modal-row:last-child{border-bottom:none;}
+.modal-key{color:var(--ink-muted);letter-spacing:0.06em;}
+.modal-val{color:var(--ink);text-align:right;max-width:60%;}
+.modal-notes{margin-top:1rem;padding:1rem;background:rgba(0,0,0,0.03);border-left:2px solid var(--gold);font-family:'Cormorant Garamond',serif;font-style:italic;font-size:0.9rem;line-height:1.6;}
+.modal-close{position:absolute;top:1rem;right:1rem;background:none;border:none;cursor:pointer;font-size:1.2rem;color:var(--ink-muted);width:28px;height:28px;display:flex;align-items:center;justify-content:center;}
+.modal-close:hover{color:var(--ink);}
+.modal-hint{padding:0.8rem 2rem 1.2rem;font-size:0.7rem;color:var(--ink-muted);letter-spacing:0.05em;text-align:center;border-top:0.5px solid var(--line);}
+</style>
+</head>
+<body>
+
+<div id="password-screen">
+  <div style="text-align:center;">
+    <p style="font-size:0.7rem;color:#555;letter-spacing:0.2em;text-transform:uppercase;margin-bottom:1rem;">Famille Huseljic · Lopo</p>
+    <h1>Arbre Généalogique</h1>
+  </div>
+  <div style="display:flex;flex-direction:column;align-items:center;gap:1rem;">
+    <input type="password" id="pw-input" placeholder="mot de passe" autocomplete="off">
+    <p id="pw-error">Mot de passe incorrect</p>
+    <button id="pw-btn" onclick="checkPassword()">Entrer</button>
+  </div>
+  <p style="font-size:0.65rem;color:#444;letter-spacing:0.1em;">Accès réservé à la famille</p>
+</div>
+
+<div id="lang-screen">
+  <div style="text-align:center;">
+    <p style="font-size:0.7rem;color:#555;letter-spacing:0.2em;text-transform:uppercase;margin-bottom:0.8rem;">Famille · Porodica · Family · Familie</p>
+    <h1>Choisissez<br>votre langue</h1>
+  </div>
+  <div class="lang-grid">
+    <button class="lang-btn" onclick="setLang('fr')">Français<small>France</small></button>
+    <button class="lang-btn" onclick="setLang('bs')">Bosanski<small>Bosna</small></button>
+    <button class="lang-btn" onclick="setLang('en')">English<small>English</small></button>
+    <button class="lang-btn" onclick="setLang('de')">Deutsch<small>Deutschland</small></button>
+  </div>
+</div>
+
+<div id="app">
+  <div id="toolbar">
+    <h1>Huseljic · Lopo</h1>
+    <div class="tb-sep"></div>
+    <button class="tb-btn" onclick="resetView()">⌂ Centrer</button>
+    <div class="tb-sep"></div>
+    <span id="lang-indicator" onclick="changeLang()">FR</span>
+  </div>
+  <div id="legend">
+    <div class="legend-item"><div class="legend-dot" style="background:var(--huseljic);"></div><span class="legend-label" id="leg-huseljic">Lignée Huseljic</span></div>
+    <div class="legend-item"><div class="legend-dot" style="background:var(--lopo);"></div><span class="legend-label" id="leg-lopo">Lignée Lopo</span></div>
+    <div class="legend-item"><div class="legend-dot" style="background:var(--me);"></div><span class="legend-label" id="leg-me">Vous</span></div>
+  </div>
+  <div id="zoom-controls">
+    <button class="zoom-btn" onclick="doZoom(1.2)">+</button>
+    <div id="zoom-label">100%</div>
+    <button class="zoom-btn" onclick="doZoom(0.8)">−</button>
+    <button class="zoom-btn" onclick="resetView()" style="font-size:0.7rem;">↺</button>
+  </div>
+  <div id="viewport">
+    <div id="world"><svg id="lines-svg"></svg></div>
+  </div>
+</div>
+
+<div id="modal-overlay" onclick="if(event.target===this)closeModal()">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal()">✕</button>
+    <div class="modal-header">
+      <div class="modal-photo" id="modal-photo"></div>
+      <div><div class="modal-name" id="modal-name"></div><div class="modal-relation" id="modal-relation"></div></div>
+    </div>
+    <div class="modal-body" id="modal-body"></div>
+    <div class="modal-hint" id="modal-hint"></div>
+  </div>
+</div>
+
+<script>
+const PASSWORD = "familytree";
+const T = {
+  fr:{born:"Naissance",died:"Décès",alive:"Vivant(e)",migration:"Migration",notes:"Notes",relation:"Lien",hint:"Pour enrichir cette fiche, contactez Adin",legH:"Lignée Huseljic",legL:"Lignée Lopo",legMe:"Vous",deceased:"Décédé(e)"},
+  bs:{born:"Rođen/a",died:"Umro/la",alive:"Živi",migration:"Migracija",notes:"Bilješke",relation:"Veza",hint:"Za dopunu kartice, kontaktirajte Adina",legH:"Porodica Huseljic",legL:"Porodica Lopo",legMe:"Vi",deceased:"Preminuo/la"},
+  en:{born:"Born",died:"Died",alive:"Living",migration:"Migration",notes:"Notes",relation:"Relation",hint:"To enrich this card, contact Adin",legH:"Huseljic branch",legL:"Lopo branch",legMe:"You",deceased:"Deceased"},
+  de:{born:"Geboren",died:"Gestorben",alive:"Lebend",migration:"Migration",notes:"Notizen",relation:"Verhältnis",hint:"Um diese Karte zu ergänzen, kontaktieren Sie Adin",legH:"Familie Huseljic",legL:"Familie Lopo",legMe:"Sie",deceased:"Verstorben"}
+};
+let lang='fr';
+
+// Layout constants
+const CW  = 150;  // column width
+const GEN = {1:0, 2:300, 3:600, 4:900, 5:1200, 6:1500};
+const PCX = 60;   // photo center X within card (card width=120)
+const PCY = 33;   // photo center Y within card
+const PR  = 33;   // photo radius
+
+// ── PEOPLE ──────────────────────────────────────────────────────────────────
+// x = left edge of card. Photo center = x+PCX
+// Huseljic side: x < CW*8 (left)
+// Lopo side: x > CW*9 (right)
+// Adin at x=CW*8, y=GEN[4]
+
+const people = {
+
+  // ══ GEN I — ARRIÈRE-GRANDS-PARENTS ══════════════════════════════════════
+  // Huseljic side
+  hasan:        {first:"Hasan",    last:"Huseljic",   maiden:null,        born:null,                 died:null, photo:null,      branch:'huseljic', deceased:false,
+                 x:CW*0,   y:GEN[1], migrated:null,
+                 rel:{fr:"Arrière-grand-père paternel",bs:"Pradjed s očeve strane",en:"Paternal great-grandfather",de:"Urgroßvater väterlicherseits"},
+                 notes:{fr:"",bs:"",en:"",de:""}},
+  disa_dz:      {first:"Disa",     last:"Huseljic",   maiden:"Džević",    born:null,                 died:null, photo:null,      branch:'huseljic', deceased:false,
+                 x:CW*1,   y:GEN[1], migrated:null,
+                 rel:{fr:"Arrière-grand-mère paternelle",bs:"Prabaka s očeve strane",en:"Paternal great-grandmother",de:"Urgroßmutter väterlicherseits"},
+                 notes:{fr:"",bs:"",en:"",de:""}},
+  omer_besic:   {first:"Omer",     last:"Besic",      maiden:null,        born:null,                 died:null, photo:null,      branch:'huseljic', deceased:false,
+                 x:CW*3,   y:GEN[1], migrated:null,
+                 rel:{fr:"Arrière-grand-père paternel",bs:"Pradjed s očeve strane",en:"Paternal great-grandfather",de:"Urgroßvater väterlicherseits"},
+                 notes:{fr:"",bs:"",en:"",de:""}},
+  fatima_besic: {first:"Fatima",   last:"Besic",      maiden:"Susa",      born:null,                 died:null, photo:null,      branch:'huseljic', deceased:false,
+                 x:CW*4,   y:GEN[1], migrated:null,
+                 rel:{fr:"Arrière-grand-mère paternelle",bs:"Prabaka s očeve strane",en:"Paternal great-grandmother",de:"Urgroßmutter väterlicherseits"},
+                 notes:{fr:"",bs:"",en:"",de:""}},
+
+  // Lopo side — espace prévu à gauche de Jusuf pour futurs frères/sœurs de Ferida
+  // et à gauche de Mehmed pour futurs frères/sœurs d'Omer
+  jusuf:        {first:"Jusuf",    last:"Alic",       maiden:null,        born:null,                 died:null, photo:'jusuf',   branch:'lopo',     deceased:false,
+                 x:CW*10.25, y:GEN[1], migrated:null,
+                 rel:{fr:"Arrière-grand-père maternel",bs:"Pradjed s majčine strane",en:"Maternal great-grandfather",de:"Urgroßvater mütterlicherseits"},
+                 notes:{fr:"",bs:"",en:"",de:""}},
+  zehra:        {first:"Zehra",    last:"Alic",       maiden:"Ahmic",     born:null,                 died:null, photo:'zehra',   branch:'lopo',     deceased:false,
+                 x:CW*11.25, y:GEN[1], migrated:null,
+                 rel:{fr:"Arrière-grand-mère maternelle",bs:"Prabaka s majčine strane",en:"Maternal great-grandmother",de:"Urgroßmutter mütterlicherseits"},
+                 notes:{fr:"",bs:"",en:"",de:""}},
+  mehmed:       {first:"Mehmed",   last:"Lopo",       maiden:null,        born:null,                 died:null, photo:'mehmed',  branch:'lopo',     deceased:false,
+                 x:CW*11.75, y:GEN[1], migrated:null,
+                 rel:{fr:"Arrière-grand-père maternel",bs:"Pradjed s majčine strane",en:"Maternal great-grandfather",de:"Urgroßvater mütterlicherseits"},
+                 notes:{fr:"",bs:"",en:"",de:""}},
+  aisa:         {first:"Aisa",     last:"Lopo",       maiden:"Begic",     born:null,                 died:null, photo:'aisa',    branch:'lopo',     deceased:false,
+                 x:CW*12.75, y:GEN[1], migrated:null,
+                 rel:{fr:"Arrière-grand-mère maternelle",bs:"Prabaka s majčine strane",en:"Maternal great-grandmother",de:"Urgroßmutter mütterlicherseits"},
+                 notes:{fr:"",bs:"",en:"",de:""}},
+
+  // ══ GEN II — GRANDS-PARENTS ══════════════════════════════════════════════
+  sakib:        {first:"Sakib",    last:"Huseljic",   maiden:null,        born:"1939",               died:null, photo:null,      branch:'huseljic', deceased:false,
+                 x:CW*4,   y:GEN[2], migrated:null,
+                 rel:{fr:"Grand-père paternel",bs:"Djed s očeve strane",en:"Paternal grandfather",de:"Großvater väterlicherseits"},
+                 notes:{fr:"",bs:"",en:"",de:""}},
+  nazifa:       {first:"Nazifa",   last:"Huseljic",   maiden:"Besic",     born:"1940",               died:null, photo:null,      branch:'huseljic', deceased:false,
+                 x:CW*5,   y:GEN[2], migrated:null,
+                 rel:{fr:"Grand-mère paternelle",bs:"Baka s očeve strane",en:"Paternal grandmother",de:"Großmutter väterlicherseits"},
+                 notes:{fr:"",bs:"",en:"",de:""}},
+
+  // Ferida centrée sous Jusuf(x=CW*11) + Zehra(x=CW*12) → mid = CW*11.5 → Ferida à CW*11.5-0.5=CW*11
+  // On laisse CW*10 libre pour futurs frères/sœurs de Ferida
+  ferida:       {first:"Ferida",   last:"Lopo",       maiden:"Alic",      born:"20.12 (an inconnu)", died:null, photo:'ferida',  branch:'lopo',     deceased:false,
+                 x:CW*10.75, y:GEN[2], migrated:null,
+                 rel:{fr:"Grand-mère maternelle",bs:"Baka s majčine strane",en:"Maternal grandmother",de:"Großmutter mütterlicherseits"},
+                 notes:{fr:"",bs:"",en:"",de:""}},
+
+  // Omer Lopo centré sous Mehmed(x=CW*14)+Aisa(x=CW*15) → mid=CW*14.5 → Omer à CW*14.5-0.5=CW*14
+  // On laisse CW*13 libre pour futurs frères/sœurs d'Omer
+  omer_lopo:    {first:"Omer",     last:"Lopo",       maiden:null,        born:null,                 died:null, photo:'omer_lopo',branch:'lopo',    deceased:false,
+                 x:CW*11.75, y:GEN[2], migrated:null,
+                 rel:{fr:"Grand-père maternel",bs:"Djed s majčine strane",en:"Maternal grandfather",de:"Großvater mütterlicherseits"},
+                 notes:{fr:"",bs:"",en:"",de:""}},
+
+  // ══ GEN III — PARENTS + FRATRIES ═════════════════════════════════════════
+  // Fratrie Huseljic — enfants de Sakib+Nazifa
+  faruk:        {first:"Faruk",    last:"Huseljic",   maiden:null,        born:null,                 died:null, photo:null,      branch:'huseljic', deceased:false,
+                 x:CW*0,   y:GEN[3], migrated:null,
+                 rel:{fr:"Oncle paternel",bs:"Stric",en:"Paternal uncle",de:"Onkel väterlicherseits"},
+                 notes:{fr:"",bs:"",en:"",de:""}},
+
+  // Fatima + père inconnu de Jasmin — Fatima à CW*1, père inconnu à CW*2
+  unknown_fatima_h:{first:"?",    last:"",            maiden:null,        born:null,                 died:null, photo:null,      branch:'unknown',  deceased:false,
+                 x:CW*1,   y:GEN[3], migrated:null,
+                 rel:{fr:"Père inconnu (Jasmin)",bs:"Nepoznati otac Jasmina",en:"Jasmin's unknown father",de:"Unbekannter Vater Jasmins"},
+                 notes:{fr:"Nom inconnu — à compléter",bs:"Nepoznato ime",en:"Name unknown",de:"Name unbekannt"}},
+  fatima_h:     {first:"Fatima",   last:"Huseljic",   maiden:null,        born:null,                 died:null, photo:'fatima_h',branch:'huseljic', deceased:false,
+                 x:CW*2,   y:GEN[3], migrated:null,
+                 rel:{fr:"Tante paternelle (sœur du père)",bs:"Tetka s očeve strane",en:"Paternal aunt",de:"Tante väterlicherseits"},
+                 notes:{fr:"",bs:"",en:"",de:""}},
+
+  // Bedrija + Naser
+  naser:        {first:"Naser",    last:"Alibegovic",  maiden:null,       born:null,                 died:null, photo:null,      branch:'huseljic', deceased:true,
+                 x:CW*3,   y:GEN[3], migrated:null,
+                 rel:{fr:"Oncle paternel (mari de Bedrija, † guerre)",bs:"Stric (muž Bedrije, poginuo u ratu)",en:"Paternal uncle (Bedrija's husband, died in war)",de:"Onkel (Bedrijaʼs Mann, im Krieg gefallen)"},
+                 notes:{fr:"Décédé pendant la guerre de Bosnie",bs:"Poginuo u ratu u Bosni",en:"Died during the Bosnian war",de:"Im Bosnienkrieg gefallen"}},
+  bedrija:      {first:"Bedrija",  last:"Huseljic",    maiden:null,       born:null,                 died:null, photo:null,      branch:'huseljic', deceased:false,
+                 x:CW*4,   y:GEN[3], migrated:null,
+                 rel:{fr:"Tante paternelle",bs:"Tetka s očeve strane",en:"Paternal aunt",de:"Tante väterlicherseits"},
+                 notes:{fr:"",bs:"",en:"",de:""}},
+
+  // Borislav + Dika
+  borislav:     {first:"Borislav", last:"Lovrenovic",  maiden:null,       born:null,                 died:null, photo:null,      branch:'huseljic', deceased:true,
+                 x:CW*5,   y:GEN[3], migrated:null,
+                 rel:{fr:"Oncle par alliance († décédé)",bs:"Tetak (preminuo)",en:"Uncle by marriage (deceased)",de:"Onkel angeheiratet (verstorben)"},
+                 notes:{fr:"",bs:"",en:"",de:""}},
+  dika_l:       {first:"Dika",     last:"Lovrenovic",  maiden:"Huseljic", born:null,                 died:null, photo:null,      branch:'huseljic', deceased:false,
+                 x:CW*6,   y:GEN[3], migrated:null,
+                 rel:{fr:"Tante paternelle",bs:"Tetka s očeve strane",en:"Paternal aunt",de:"Tante väterlicherseits"},
+                 notes:{fr:"",bs:"",en:"",de:""}},
+
+  // Vinko + Disa
+  vinko:        {first:"Vinko",    last:"Solomun",     maiden:null,       born:null,                 died:null, photo:'vinko',   branch:'huseljic', deceased:true,
+                 x:CW*7,   y:GEN[3], migrated:null,
+                 rel:{fr:"Oncle par alliance († décédé)",bs:"Tetak (preminuo)",en:"Uncle by marriage (deceased)",de:"Onkel angeheiratet (verstorben)"},
+                 notes:{fr:"",bs:"",en:"",de:""}},
+  disa_s:       {first:"Disa",     last:"Solomun",     maiden:"Huseljic", born:null,                 died:null, photo:'disa_s',  branch:'huseljic', deceased:false,
+                 x:CW*8,   y:GEN[3], migrated:null,
+                 rel:{fr:"Tante paternelle",bs:"Tetka s očeve strane",en:"Paternal aunt",de:"Tante väterlicherseits"},
+                 notes:{fr:"",bs:"",en:"",de:""}},
+
+  // Parents — Fuad+Mersija centrés sous leurs branches respectives
+  // Ferida(x=CW*11.5) + Omer(x=CW*14.5) → leurs enfants Mersija et Alma
+  // On place Fuad à CW*9, Mersija à CW*10
+  fuad:         {first:"Fuad",     last:"Huseljic",    maiden:null,       born:"09.09.1964",         died:null, photo:null,      branch:'huseljic', deceased:false,
+                 x:CW*9,   y:GEN[3], migrated:{from:"Bosnie",to:"France"},
+                 rel:{fr:"Père",bs:"Otac",en:"Father",de:"Vater"},
+                 notes:{fr:"",bs:"",en:"",de:""}},
+  mersija:      {first:"Mersija",  last:"Huseljic",    maiden:"Lopo",     born:"09.10.1972",         died:null, photo:null,      branch:'lopo',     deceased:false,
+                 x:CW*10,  y:GEN[3], migrated:null,
+                 rel:{fr:"Mère",bs:"Majka",en:"Mother",de:"Mutter"},
+                 notes:{fr:"",bs:"",en:"",de:""}},
+
+  // Alma + Osman — centrés entre Delila(x=CW*12) et Emina(x=CW*14)
+  // mid enfants = (CW*12 + CW*14)/2 = CW*13 → Alma à CW*12.5, Osman à CW*13.5
+  alma:         {first:"Alma",     last:"Spahic",      maiden:"Lopo",     born:"10.08.1976",         died:null, photo:null,      branch:'lopo',     deceased:false,
+                 x:CW*12.5, y:GEN[3], migrated:null,
+                 rel:{fr:"Tante maternelle",bs:"Tetka s majčine strane",en:"Maternal aunt",de:"Tante mütterlicherseits"},
+                 notes:{fr:"",bs:"",en:"",de:""}},
+  osman:        {first:"Osman",    last:"Spahic",      maiden:null,       born:"24.05.1969",         died:null, photo:'osman',   branch:'lopo',     deceased:false,
+                 x:CW*13.5, y:GEN[3], migrated:null,
+                 rel:{fr:"Oncle maternel par alliance",bs:"Tetak s majčine strane",en:"Maternal uncle by marriage",de:"Onkel mütterlicherseits"},
+                 notes:{fr:"",bs:"",en:"",de:""}},
+
+  // ══ GEN IV ═══════════════════════════════════════════════════════════════
+  // Jasmin sous Fatima(x=CW*2) + père inconnu(x=CW*1) → mid=CW*1.5 → Jasmin à CW*1.5-0.5=CW*1.5
+  jasmin:       {first:"Jasmin",   last:"Huseljic",    maiden:null,       born:"09.10.1991",         died:null, photo:null,      branch:'huseljic', deceased:false,
+                 x:CW*1.5, y:GEN[4], migrated:null,
+                 rel:{fr:"Cousin paternel (fils de Fatima)",bs:"Bratić (sin Fatime)",en:"Paternal cousin (Fatima's son)",de:"Cousin (Fatimas Sohn)"},
+                 notes:{fr:"",bs:"",en:"",de:""}},
+
+  // Nina sous Bedrija(x=CW*4)+Naser(x=CW*3) → mid=CW*3.5 → Nina à CW*3.5-0.5=CW*3.5
+  nina:         {first:"Nina",     last:"Alibegovic",  maiden:null,       born:null,                 died:null, photo:null,      branch:'huseljic', deceased:false,
+                 x:CW*3.5, y:GEN[4], migrated:null,
+                 rel:{fr:"Cousine (fille de Bedrija)",bs:"Bratična (kći Bedrije)",en:"Cousin (Bedrija's daughter)",de:"Cousine (Bedrijaʼs Tochter)"},
+                 notes:{fr:"",bs:"",en:"",de:""}},
+
+  // Adna, Adin, Armin sous Fuad(CW*9)+Mersija(CW*10) → mid=CW*9.5
+  // 3 enfants espacés autour de CW*9.5 : Adna=CW*8.5, Adin=CW*9.5, Armin=CW*10.5
+  adna:         {first:"Adna",     last:"Huseljic",    maiden:null,       born:"23.04.1993",         died:null, photo:null,      branch:'huseljic', deceased:false,
+                 x:CW*8.5, y:GEN[4], migrated:null,
+                 rel:{fr:"Sœur",bs:"Sestra",en:"Sister",de:"Schwester"},
+                 notes:{fr:"",bs:"",en:"",de:""}},
+  adin:         {first:"Adin",     last:"Huseljic",    maiden:null,       born:"20.12.1996",         died:null, photo:null,      branch:'me',       deceased:false,
+                 x:CW*9.5, y:GEN[4], migrated:null,
+                 rel:{fr:"Vous",bs:"Vi",en:"You",de:"Sie"},
+                 notes:{fr:"",bs:"",en:"",de:""}},
+  armin:        {first:"Armin",    last:"Huseljic",    maiden:null,       born:"30.09.2005",         died:null, photo:null,      branch:'huseljic', deceased:false,
+                 x:CW*10.5,y:GEN[4], migrated:null,
+                 rel:{fr:"Frère",bs:"Brat",en:"Brother",de:"Bruder"},
+                 notes:{fr:"",bs:"",en:"",de:""}},
+
+  // Delila+Almir, Emina+Adnan — sous Alma(CW*12.5)+Osman(CW*13.5) → mid=CW*13
+  // 2 couples : Almir/Delila à CW*11.5/CW*12.5, Adnan/Emina à CW*13.5/CW*14.5
+  almir:        {first:"Almir",    last:"Islamovic",   maiden:null,       born:null,                 died:null, photo:'almir',   branch:'lopo',     deceased:false,
+                 x:CW*11.5,y:GEN[4], migrated:{from:"Bosnie",to:"Allemagne"},
+                 rel:{fr:"Cousin par alliance (mari de Delila)",bs:"Tetak (muž Delile)",en:"Cousin by marriage",de:"Cousin angeheiratet"},
+                 notes:{fr:"",bs:"",en:"",de:""}},
+  delila:       {first:"Delila",   last:"Islamovic",   maiden:"Spahic",   born:"04.03.1994",         died:null, photo:'delila',  branch:'lopo',     deceased:false,
+                 x:CW*12.5,y:GEN[4], migrated:null,
+                 rel:{fr:"Cousine maternelle (fille d'Alma)",bs:"Rođaka s majčine strane",en:"Maternal cousin",de:"Cousine mütterlicherseits"},
+                 notes:{fr:"",bs:"",en:"",de:""}},
+  adnan:        {first:"Adnan",    last:"Vejzovic",    maiden:null,       born:null,                 died:null, photo:null,      branch:'lopo',     deceased:false,
+                 x:CW*13.5,y:GEN[4], migrated:null,
+                 rel:{fr:"Cousin par alliance (mari d'Emina)",bs:"Tetak (muž Emine)",en:"Cousin by marriage",de:"Cousin angeheiratet"},
+                 notes:{fr:"",bs:"",en:"",de:""}},
+  emina:        {first:"Emina",    last:"Vejzovic",    maiden:"Spahic",   born:null,                 died:null, photo:null,      branch:'lopo',     deceased:false,
+                 x:CW*14.5,y:GEN[4], migrated:null,
+                 rel:{fr:"Cousine maternelle (fille d'Alma)",bs:"Rođaka s majčine strane",en:"Maternal cousin",de:"Cousine mütterlicherseits"},
+                 notes:{fr:"",bs:"",en:"",de:""}},
+
+  // ══ GEN V ════════════════════════════════════════════════════════════════
+  lejla:        {first:"Lejla",    last:"Alibegovic",  maiden:null,       born:null,                 died:null, photo:null,      branch:'huseljic', deceased:false,
+                 x:CW*3.5, y:GEN[5], migrated:null,
+                 rel:{fr:"Petite-cousine (fille de Nina)",bs:"Daleka rođaka",en:"Second cousin (Nina's daughter)",de:"Entfernte Cousine"},
+                 notes:{fr:"",bs:"",en:"",de:""}},
+  // Nadia + Omar sous Almir(CW*11.5)+Delila(CW*12.5) → mid=CW*12 → Nadia=CW*11.5, Omar=CW*12.5
+  nadia_i:      {first:"Nadia",    last:"Islamovic",   maiden:null,       born:null,                 died:null, photo:'nadia_i', branch:'lopo',     deceased:false,
+                 x:CW*11.5,y:GEN[5], migrated:null,
+                 rel:{fr:"Petite-cousine (fille de Delila)",bs:"Daleka rođaka",en:"Second cousin",de:"Entfernte Cousine"},
+                 notes:{fr:"",bs:"",en:"",de:""}},
+  omar_i:       {first:"Omar",     last:"Islamovic",   maiden:null,       born:null,                 died:null, photo:'omar_i',  branch:'lopo',     deceased:false,
+                 x:CW*12.5,y:GEN[5], migrated:null,
+                 rel:{fr:"Petit-cousin (fils de Delila)",bs:"Daleki rođak",en:"Second cousin",de:"Entfernter Cousin"},
+                 notes:{fr:"",bs:"",en:"",de:""}},
+  // Ahmed + Ajdin sous Adnan(CW*13.5)+Emina(CW*14.5) → mid=CW*14 → Ahmed=CW*13.5, Ajdin=CW*14.5
+  ahmed:        {first:"Ahmed",    last:"Vejzovic",    maiden:null,       born:null,                 died:null, photo:null,      branch:'lopo',     deceased:false,
+                 x:CW*13.5,y:GEN[5], migrated:null,
+                 rel:{fr:"Petit-cousin (fils d'Emina)",bs:"Daleki rođak",en:"Second cousin",de:"Entfernter Cousin"},
+                 notes:{fr:"",bs:"",en:"",de:""}},
+  ajdin:        {first:"Ajdin",    last:"Vejzovic",    maiden:null,       born:null,                 died:null, photo:null,      branch:'lopo',     deceased:false,
+                 x:CW*14.5,y:GEN[5], migrated:null,
+                 rel:{fr:"Petit-cousin (fils d'Emina)",bs:"Daleki rođak",en:"Second cousin",de:"Entfernter Cousin"},
+                 notes:{fr:"",bs:"",en:"",de:""}},
+};
+
+// Couple pairs for dashed horizontal line
+// migrationLabel: show badge above couple line
+const couples = [
+  {k1:'hasan',      k2:'disa_dz',    branch:'huseljic', migration:null},
+  {k1:'omer_besic', k2:'fatima_besic',branch:'huseljic', migration:null},
+  {k1:'jusuf',      k2:'zehra',      branch:'lopo',      migration:null},
+  {k1:'mehmed',     k2:'aisa',       branch:'lopo',      migration:null},
+  {k1:'sakib',      k2:'nazifa',     branch:'huseljic',  migration:null},
+  {k1:'ferida',     k2:'omer_lopo',  branch:'lopo',      migration:null},
+  {k1:'unknown_fatima_h', k2:'fatima_h', branch:'huseljic', migration:null},
+  {k1:'naser',      k2:'bedrija',    branch:'huseljic',  migration:null},
+  {k1:'borislav',   k2:'dika_l',     branch:'huseljic',  migration:null},
+  {k1:'vinko',      k2:'disa_s',     branch:'huseljic',  migration:null},
+  {k1:'fuad',       k2:'mersija',    branch:'huseljic',  migration:{from:"Bosnie",to:"France"}},
+  {k1:'alma',       k2:'osman',      branch:'lopo',      migration:null},
+  {k1:'almir',      k2:'delila',     branch:'lopo',      migration:{from:"Bosnie",to:"Allemagne"}},
+  {k1:'adnan',      k2:'emina',      branch:'lopo',      migration:null},
+];
+
+const families = [
+  {p1:'hasan',      p2:'disa_dz',    children:['sakib'],                        branch:'huseljic'},
+  {p1:'omer_besic', p2:'fatima_besic',children:['nazifa'],                       branch:'huseljic'},
+  {p1:'jusuf',      p2:'zehra',      children:['ferida'],                        branch:'lopo'},
+  {p1:'mehmed',     p2:'aisa',       children:['omer_lopo'],                     branch:'lopo'},
+  {p1:'sakib',      p2:'nazifa',     children:['faruk','fatima_h','bedrija','dika_l','disa_s','fuad'], branch:'huseljic'},
+  {p1:'ferida',     p2:'omer_lopo',  children:['mersija','alma'],                branch:'lopo'},
+  {p1:'unknown_fatima_h',p2:'fatima_h',children:['jasmin'],                      branch:'huseljic'},
+  {p1:'naser',      p2:'bedrija',    children:['nina'],                          branch:'huseljic'},
+  {p1:'fuad',       p2:'mersija',    children:['adna','adin','armin'],           branch:'huseljic'},
+  {p1:'alma',       p2:'osman',      children:['delila','emina'],                branch:'lopo'},
+  {p1:'almir',      p2:'delila',     children:['nadia_i','omar_i'],             branch:'lopo'},
+  {p1:'adnan',      p2:'emina',      children:['ahmed','ajdin'],                branch:'lopo'},
+  {p1:'nina',       p2:null,         children:['lejla'],                         branch:'huseljic'},
+];
+
+function bc(b){
+  if(b==='huseljic') return '#2C4A3E';
+  if(b==='lopo')     return '#3A2C4A';
+  if(b==='me')       return '#B8936A';
+  return '#888';
+}
+function lc(b){
+  if(b==='huseljic') return '#4a7a6a';
+  if(b==='lopo')     return '#6a4a7a';
+  return '#B8936A';
+}
+function photoCX(k){return people[k].x+PCX;}
+function photoCY(k){return people[k].y+PCY;}
+function photoBottom(k){return people[k].y+PCY+PR;}
+function photoTop(k){return people[k].y+PCY-PR;}
+function initials(p){
+  if(p.first==='?') return '?';
+  return (p.first[0]+(p.maiden||p.last||'?')[0]).toUpperCase();
+}
+
+function renderPeople(){
+  document.getElementById('world').querySelectorAll('.person').forEach(e=>e.remove());
+  Object.entries(people).forEach(([key,p])=>{
+    const div=document.createElement('div');
+    div.className='person';
+    div.style.left=p.x+'px';
+    div.style.top=p.y+'px';
+    div.onclick=()=>showModal(key);
+    const bg=bc(p.branch);
+    const photoSrc=PHOTOS[key];
+    const photoHtml=photoSrc?`<img src="${photoSrc}" alt="${p.first}">`:`<span class="person-initials">${initials(p)}</span>`;
+    const op=p.deceased?'opacity:0.6;':'';
+    div.innerHTML=`
+      <div class="person-photo" style="background:${bg};border-color:${bg}88;${op}">${photoHtml}</div>
+      <div class="person-info">
+        <div class="person-first" style="${p.deceased?'color:var(--ink-muted);':''}">${p.first}${p.last?' '+p.last:''}${p.deceased?' †':''}</div>
+        ${p.maiden?`<div class="person-maiden">(${p.maiden})</div>`:''}
+        ${p.born?`<div class="person-dates">${p.born}${p.died?' – '+p.died:''}</div>`:`<div class="person-dates" style="opacity:0.35;font-size:0.55rem;">—</div>`}
+      </div>`;
+    document.getElementById('world').appendChild(div);
+  });
+}
+
+function drawLines(){
+  const svg=document.getElementById('lines-svg');
+  svg.innerHTML='';
+  let minX=Infinity,minY=Infinity,maxX=-Infinity,maxY=-Infinity;
+  Object.values(people).forEach(p=>{
+    minX=Math.min(minX,p.x);minY=Math.min(minY,p.y);
+    maxX=Math.max(maxX,p.x+120);maxY=Math.max(maxY,p.y+200);
+  });
+  const pad=150,ox=minX-pad,oy=minY-pad;
+  svg.setAttribute('width',maxX-minX+pad*2);
+  svg.setAttribute('height',maxY-minY+pad*2);
+  svg.style.left=ox+'px';svg.style.top=oy+'px';
+
+  function px(wx){return wx-ox;}
+  function py(wy){return wy-oy;}
+
+  function svgLine(x1,y1,x2,y2,col,dash,w){
+    const el=document.createElementNS('http://www.w3.org/2000/svg','line');
+    el.setAttribute('x1',px(x1));el.setAttribute('y1',py(y1));
+    el.setAttribute('x2',px(x2));el.setAttribute('y2',py(y2));
+    el.setAttribute('stroke',col);el.setAttribute('stroke-width',w||'1.8');
+    if(dash)el.setAttribute('stroke-dasharray','5,4');
+    svg.appendChild(el);
+  }
+
+  function svgText(x,y,text,col,size){
+    // Background rect first
+    const g=document.createElementNS('http://www.w3.org/2000/svg','g');
+    const rect=document.createElementNS('http://www.w3.org/2000/svg','rect');
+    const tw=text.length*5.5+10;
+    const th=14;
+    rect.setAttribute('x',px(x)-tw/2);rect.setAttribute('y',py(y)-th/2);
+    rect.setAttribute('width',tw);rect.setAttribute('height',th);
+    rect.setAttribute('rx','7');rect.setAttribute('fill','#E6F1FB');
+    const t=document.createElementNS('http://www.w3.org/2000/svg','text');
+    t.setAttribute('x',px(x));t.setAttribute('y',py(y)+4);
+    t.setAttribute('text-anchor','middle');t.setAttribute('fill',col||'#185FA5');
+    t.setAttribute('font-size',size||'9');t.setAttribute('font-family','Jost,sans-serif');
+    t.setAttribute('letter-spacing','0.5');
+    t.textContent=text;
+    g.appendChild(rect);g.appendChild(t);
+    svg.appendChild(g);
+  }
+
+  // Draw couple lines + migration labels
+  couples.forEach(({k1,k2,branch,migration})=>{
+    if(!people[k1]||!people[k2]) return;
+    const col=lc(branch);
+    const x1=photoCX(k1)+PR;
+    const x2=photoCX(k2)-PR;
+    const y=photoCY(k1);
+    if(x2>x1){
+      svgLine(x1,y,x2,y,col,true);
+      // Migration label above the couple line
+      if(migration){
+        const midX=(x1+x2)/2;
+        const label=`✈ ${migration.from}→${migration.to}`;
+        svgText(midX, y-12, label, '#185FA5', '9');
+      }
+    }
+  });
+
+  // Draw family connections
+  families.forEach(({p1,p2,children,branch})=>{
+    if(!people[p1]) return;
+    const col=lc(branch);
+    const midX=p2&&people[p2]?(photoCX(p1)+photoCX(p2))/2:photoCX(p1);
+    const parentY=photoBottom(p1);
+    const dropY=parentY+55;
+
+    svgLine(midX,parentY,midX,dropY,col,false);
+
+    const valid=children.filter(c=>people[c]);
+    if(valid.length>1){
+      const cxs=valid.map(c=>photoCX(c));
+      svgLine(Math.min(...cxs),dropY,Math.max(...cxs),dropY,col,false);
+      valid.forEach(c=>{svgLine(photoCX(c),dropY,photoCX(c),photoTop(c),col,false);});
+    } else if(valid.length===1){
+      const cx=photoCX(valid[0]);
+      const ct=photoTop(valid[0]);
+      if(Math.abs(cx-midX)<5){svgLine(midX,dropY,cx,ct,col,false);}
+      else{svgLine(midX,dropY,cx,dropY,col,false);svgLine(cx,dropY,cx,ct,col,false);}
+    }
+  });
+}
+
+function renderTree(){renderPeople();requestAnimationFrame(()=>drawLines());}
+
+let scale=0.5,tx=0,ty=0,dragging=false,lastX,lastY;
+function applyTransform(){
+  document.getElementById('world').style.transform=`translate(${tx}px,${ty}px) scale(${scale})`;
+  document.getElementById('zoom-label').textContent=Math.round(scale*100)+'%';
+}
+function resetView(){
+  scale=0.5;
+  const ax=people.adin.x+PCX,ay=people.adin.y+PCY;
+  tx=window.innerWidth/2-ax*scale;ty=window.innerHeight/2-ay*scale;
+  applyTransform();
+}
+function doZoom(f,cx,cy){
+  cx=cx||window.innerWidth/2;cy=cy||window.innerHeight/2;
+  const ns=Math.min(2,Math.max(0.12,scale*f));
+  tx=cx-(cx-tx)*(ns/scale);ty=cy-(cy-ty)*(ns/scale);scale=ns;applyTransform();
+}
+const vp=document.getElementById('viewport');
+vp.addEventListener('mousedown',e=>{dragging=true;lastX=e.clientX;lastY=e.clientY;e.preventDefault();});
+window.addEventListener('mousemove',e=>{if(!dragging)return;tx+=e.clientX-lastX;ty+=e.clientY-lastY;lastX=e.clientX;lastY=e.clientY;applyTransform();});
+window.addEventListener('mouseup',()=>dragging=false);
+vp.addEventListener('wheel',e=>{e.preventDefault();doZoom(e.deltaY<0?1.1:0.9,e.clientX,e.clientY);},{passive:false});
+let ltd=null;
+vp.addEventListener('touchstart',e=>{if(e.touches.length===1){dragging=true;lastX=e.touches[0].clientX;lastY=e.touches[0].clientY;}});
+vp.addEventListener('touchmove',e=>{e.preventDefault();if(e.touches.length===1&&dragging){tx+=e.touches[0].clientX-lastX;ty+=e.touches[0].clientY-lastY;lastX=e.touches[0].clientX;lastY=e.touches[0].clientY;applyTransform();}else if(e.touches.length===2){const d=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,e.touches[0].clientY-e.touches[1].clientY);if(ltd)doZoom(d/ltd,(e.touches[0].clientX+e.touches[1].clientX)/2,(e.touches[0].clientY+e.touches[1].clientY)/2);ltd=d;}},{passive:false});
+vp.addEventListener('touchend',()=>{dragging=false;ltd=null;});
+
+function showModal(key){
+  const p=people[key],t=T[lang],bg=bc(p.branch);
+  const photoEl=document.getElementById('modal-photo');
+  photoEl.style.background=bg;
+  const ps=PHOTOS[key];
+  photoEl.innerHTML=ps?`<img src="${ps}" alt="${p.first}">`:`<span style="color:white;">${initials(p)}</span>`;
+  document.getElementById('modal-name').textContent=p.first+(p.last?' '+p.last:'')+(p.maiden?` (${p.maiden})`:'')+( p.deceased?' †':'');
+  document.getElementById('modal-relation').textContent=p.rel[lang];
+  const rows=[[t.born,p.born||'—'],[t.died,p.died||(p.born?t.alive:'—')],[t.migration,p.migrated?`${p.migrated.from} → ${p.migrated.to}`:'—']];
+  if(p.deceased) rows.push([t.deceased,'✓']);
+  let body=rows.map(([k,v])=>`<div class="modal-row"><span class="modal-key">${k}</span><span class="modal-val">${v}</span></div>`).join('');
+  const note=p.notes[lang];
+  if(note) body+=`<div class="modal-notes">"${note}"</div>`;
+  document.getElementById('modal-body').innerHTML=body;
+  document.getElementById('modal-hint').textContent=t.hint;
+  document.getElementById('modal-overlay').classList.add('open');
+}
+function closeModal(){document.getElementById('modal-overlay').classList.remove('open');}
+function setLang(l){
+  lang=l;
+  document.getElementById('lang-screen').style.display='none';
+  document.getElementById('app').style.display='block';
+  document.getElementById('lang-indicator').textContent=l.toUpperCase();
+  document.getElementById('leg-huseljic').textContent=T[l].legH;
+  document.getElementById('leg-lopo').textContent=T[l].legL;
+  document.getElementById('leg-me').textContent=T[l].legMe;
+  renderTree();setTimeout(resetView,50);
+}
+function changeLang(){document.getElementById('app').style.display='none';document.getElementById('lang-screen').style.display='flex';}
+function checkPassword(){
+  if(document.getElementById('pw-input').value===PASSWORD){
+    document.getElementById('password-screen').style.display='none';
+    document.getElementById('lang-screen').style.display='flex';
+  }else{
+    document.getElementById('pw-error').classList.add('show');
+    document.getElementById('pw-input').value='';
+    setTimeout(()=>document.getElementById('pw-error').classList.remove('show'),2000);
+  }
+}
+document.getElementById('pw-input').addEventListener('keydown',e=>{if(e.key==='Enter')checkPassword();});
+</script>
+<script>
+const PHOTOS = {
+  zehra:       "photos/zehra.jpg",
+  jusuf:       "photos/jusuf.jpg",
+  ferida:      "photos/ferida.jpg",
+  omer_lopo:   "photos/omer_lopo.jpg",
+  osman:       "photos/osman.jpg",
+  mehmed:      "photos/mehmed.jpg",
+  aisa:        "photos/aisa.jpg",
+  fatima_h:    "photos/fatima_h.jpg",
+  vinko:       "photos/vinko.jpg",
+  almir:       "photos/almir.jpg",
+  delila:      "photos/delila.jpg",
+  disa_s:      "photos/disa_s.jpg",
+  nadia_i:     "photos/nadia_i.jpg",
+  omar_i:      "photos/omar_i.jpg",
+};
+</script>
+</body>
+</html>
